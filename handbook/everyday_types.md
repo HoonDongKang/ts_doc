@@ -175,3 +175,179 @@ function printId(id: number | string) {
 예를 들어, **모자를 쓴 키 큰 사람들** 과 **모자를 쓴 스페인 사람들**이 있다면 그들 무리에서 알 수 있는 유일한 사실을 **모자를 쓰고 있다는 점** 이다.
 
 
+### Type Alias
+
+`type alias`는 특정 타입에 대한 이름을 지정하여 여러 번 사용 가능하게 한다.
+
+타입 별칭은 단순히 타입에 대한 별칭을 붙이는 것일 뿐 새로운 타입을 생성하는 것은 아니다.
+
+```typescript
+type UserInputSanitizedString = string;
+ 
+function sanitizeInput(str: string): UserInputSanitizedString {
+  return sanitize(str);
+}
+ 
+// Create a sanitized input
+let userInput = sanitizeInput(getInput());
+ 
+// Can still be re-assigned with a string though
+userInput = "new input";
+```
+
+### Interfaces
+
+`interface declaration`은 객체 타입에 이름을 지정하는 하나의 방식이다.
+
+```typescript
+interface Point {
+  x: number;
+  y: number;
+}
+ 
+function printCoord(pt: Point) {
+  console.log("The coordinate's x value is " + pt.x);
+  console.log("The coordinate's y value is " + pt.y);
+}
+ 
+printCoord({ x: 100, y: 100 });
+```
+
+`type alias`를 사용하였을 때도 해당 객체 타입에 대해서는 동일하게 동작할 것이다. 타입스크립트는 전달되는 **값의 구조**에 대해서만 고려하고 그 값이 기대하는 속성을 가지고 있는지 여부를 확인한다.
+
+이처럼 타입의 **구조**와 **능력**에만 관심을 가지는 특징을 **구조적 타입 시스템(Structural Typed Type System)**이라고 부른다.
+
+#### Differences Between Type Aliases and Interfaces
+
+`Type aliases`와 `interfaces`는 매우 비슷하며 대부분의 경우에는 자유롭게 선택 가능하다.
+
+거의 모든 `interfaces` 기능은 `Type aliases`에서 사용할 수 있으며 가장 주요한 차이점은 `Type aliases`는 새로운 속성 추가를 위해 re-open이 불가하지만 `interface`는 가능하다.
+
+`Interface`
+- Extending an interface
+``` typescript
+interface Animal {
+  name: string;
+}
+
+interface Bear extends Animal {
+  honey: boolean;
+}
+
+const bear = getBear();
+bear.name;
+bear.honey;
+```
+
+- Adding new fields to an existing interface
+``` typescript
+interface Window {
+  title: string;
+}
+
+interface Window {
+  ts: TypeScriptAPI;
+}
+
+const src = 'const a = "Hello World"';
+window.ts.transpileModule(src, {});
+```
+
+`Type`
+- Extending a type via intersections
+``` typescript
+type Animal = {
+  name: string;
+}
+
+type Bear = Animal & { 
+  honey: boolean;
+}
+
+const bear = getBear();
+bear.name;
+bear.honey;
+        
+```
+
+- A type **cannot** be changed after being created
+``` typescript
+type Window = {
+  title: string;
+}
+
+type Window = {
+  ts: TypeScriptAPI;
+}
+
+ // Error: Duplicate identifier 'Window'.
+```
+
+### Type Assetions
+
+가끔은 타입스크립트가 알지 못하는 값의 타입에 대해 사용자가 알고 있을 수도 있다.
+
+예를 들어 `document.getElemetById`의 경우, 타입스크립트는 반환값이 `HTMLelement`의 한 종류인지만 알고 있지만 당신은 특정 ID를 갖는 `HTMLCanvasElement`라는 것을 알수도 있습니다.
+
+```typescript
+const myCanvas = document.getElementById("main_canvas") as HTMLCanvasElement;
+
+const myCanvas = <HTMLCanvasElement>document.getElementById("main_canvas");
+```
+
+`Type assertion`으로 특정 타입을 규정시킬 수 있다. 
+타입 단언은 컴파일러에 의해 제거되지만 런타임 과정에서 영향을 끼치진 않는다.
+
+> 타입 단언은 컴파일 타임에만 영향을 끼치며 런타임에는 완전히 제거되기 때문에, 잘못된 타입 단언을 사용하더라도 컴파일 시, 경고가 뜨거나 런타임 예의 혹은 `null`이 발생하지 않는다.
+
+타입스크립트는 타입 단언을 해당 타입의 더 세부적이거나 덜 세부적인 타입으로만 허용시킨다. 
+
+```typescript
+const x = "hello" as number;
+//Conversion of type 'string' to type 'number' may be a mistake 
+//because neither type sufficiently overlaps with the other. 
+//If this was intentional, convert the expression to 'unknown' first.
+```
+
+다만, 복잡한 타입 변환을 허용하지 않기 때문에 두 번의 타입 단언을 통해 강제 변환이 가능하다.
+
+```typescript
+const a = expr as any as T;
+```
+
+### Literal Types
+
+자바스크립트에서 `var` / `let`으로 할당된 변수는 재할당이 가능하지만 `const`는 불가하다. 이를 토대로 타입스크립트에서 literal로 타입을 생성하게 영향을 주었다.
+
+```typescript
+let x: "hello" = "hello";
+// OK
+x = "hello";
+// ...
+x = "howdy";
+```
+하나의 값만 갖는 변수를 선언하기 위해 타입을 지정하는 것은 딱히 쓸모가 있어보이진 않지만
+
+`union`으로 `literal`을 합쳐서 사용하면 훨씬 효율적인 방식으로 사용이 가능하다.
+
+```typescript
+function printText(s: string, alignment: "left" | "right" | "center") {
+  // ...
+}
+printText("Hello, world", "left");
+printText("G'day, mate", "centre");
+
+function compare(a: string, b: string): -1 | 0 | 1 {
+  return a === b ? 0 : a > b ? 1 : -1;
+}
+
+interface Options {
+  width: number;
+}
+function configure(x: Options | "auto") {
+  // ...
+}
+```
+
+#### Literal Inference
+
