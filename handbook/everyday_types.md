@@ -351,3 +351,61 @@ function configure(x: Options | "auto") {
 
 #### Literal Inference
 
+```typescript
+declare function handleRequest(url: string, method: "GET" | "POST"): void;
+ 
+const req = { url: "https://example.com", method: "GET" };
+handleRequest(req.url, req.method);
+//Argument of type 'string' is not assignable to parameter of type '"GET" | "POST"'.
+```
+
+예제에서 `req`가 생성되고 `handleRequest`를 통해 `req.method`에 `GUESS`같은 새로운 `string`이 할당될 수도 있기 때문에 `req.method`는 `GET`이 아닌 `string`으로 추정된다.
+
+1. 타입 단언을 통해 타입 추론 문제 해결
+```typescript
+// Change 1:
+// req.method 값으로는 오로지 "GET"만 올 수 있음을 선언
+const req = { url: "https://example.com", method: "GET" as "GET" };
+// Change 2
+// req.method에는 항상 "GET"만 온다는 것을 선언
+handleRequest(req.url, req.method as "GET");
+```
+
+2. 객체 전체를 type literal로 고정 시키는 방법
+```typescript
+const req = { url: "https://example.com", method: "GET" } as const;
+handleRequest(req.url, req.method);
+```
+
+### `null` and `undefined`
+
+자바스크립트에는 값이 존재하지 않거나 초기화되지 않았음을 나타내는 두 원시값 `null` 과 `undefined`가 있다. 타입스크립트에서는 해당 타입들이 어떻게 동작하는 지 설정하는 옵션들이 존재한다.
+
+#### `strictNullChecks`
+ - `off`
+`null`과 `undefined`의 값을 갖는 변수에 평소처럼 접근이 가능하며 모든 타입 속성에 할당이 가능하다.
+
+- `on`
+`null` 혹은 `undefined` 일 떄, 해당 method나 property를 사용하기 전에 테스트가 선행되어야 한다. (`narrowing`)
+
+```typescript
+function doSomething(x: string | null) {
+  if (x === null) {
+    // do nothing
+  } else {
+    console.log("Hello, " + x.toUpperCase());
+  }
+}
+```
+
+#### Non-null Assertion Operator (Postfix !)
+타입스크립트에서 `!` 연산자는 `null`과 `undefined`를 타입에서 제거하는 연산자이다.
+해당 연산자를 사용하면 타입 추론에서 해당 표현식이 `null` 혹은 `undefined`가 아님을 변경시킬 수 있다.
+
+```typescript
+function liveDangerously(x?: number | null) {
+  // No error
+  console.log(x!.toFixed());
+}
+```
+
