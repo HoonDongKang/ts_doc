@@ -94,7 +94,7 @@ Boolean("hello"); // type: boolean, value: true
 //This kind of expression is always truthy.
 ```
 
-`null`이나 `undefined`와 같은 값들로부터 guarding 하기 위해 사용되는 방식이기도 하다.
+`null`이나 `undefined`와 같은 값들로부터 guarding 하기 위해 사용되는 방식이기도 합니다.
 
 ```typescript
 function printAll(strs: string | string[] | null) {
@@ -107,4 +107,110 @@ function printAll(strs: string | string[] | null) {
   }
 }
 ```
+
+`strs`가 참인 지 검사하는 방식으로 에러를 제거할 수 있습니다.. 최소한 `TypeError: null is not iterable` 와 같은 오류를 예방시켜줄 수 있습니다.
+
+
+원시값에 참/거짓을 검사하는 것은 가끔 오류가 발생할 수도 있습니다.
+
+```typescript
+function printAll(strs: string | string[] | null) {
+  // !!!!!!!!!!!!!!!!
+  //  DON'T DO THIS!
+  //   KEEP READING
+  // !!!!!!!!!!!!!!!!
+  if (strs) {
+    if (typeof strs === "object") {
+      for (const s of strs) {
+        console.log(s);
+      }
+    } else if (typeof strs === "string") {
+      console.log(strs);
+    }
+  }
+}
+```
+
+해당 함수 전체를 truthy 검사로 감싸는 방식은 미묘한 단점을 가질 수 있습니다. (빈 문자열 `""` 을 올바르게 처리하지 못한다는 점이죠)
+
+타입스크립트는 초기 단계에서 버그를 잡는데 도움이 될 수 있지만, 개발자가 해당 값에 대해서 아무런 조치를 취하지 않는다면 할 수 있는 일이 제한적입니다.
+(빈 문자열`""` 에 대해서 개발자가 아무런 조치를 취하지 않음 -> TS에서 버그를 잡지 않음)
+
+참/거짓 검사에서 narrowing을 하는 한 가지 추가적인 방법은`!` boolean 부정을 통해 검사하는 방식이다.
+
+```typescript
+function multiplyAll(
+  values: number[] | undefined,
+  factor: number
+): number[] | undefined {
+  if (!values) {
+    return values;
+  } else {
+    return values.map((x) => x * factor);
+  }
+}
+```
+
+
+### Equality narrowing
+
+```typescript
+function example(x: string | number, y: string | boolean) {
+  if (x === y) {
+    // We can now call any 'string' method on 'x' or 'y'.
+    x.toUpperCase();
+          
+(method) String.toUpperCase(): string
+    y.toLowerCase();
+          
+(method) String.toLowerCase(): string
+  } else {
+    console.log(x);
+               
+(parameter) x: string | number
+    console.log(y);
+               
+(parameter) y: string | boolean
+  }
+}
+```
+
+해당 예제에서 `x`와 `y`값은 동일하다고 검사하고 있지만 타입스크립트는 해당 타입들 또한 같아야 한다고 인지하고 있습니다. `string`은 `x`와 `y`가 갖는 공통 타입이고 첫번째 분기에서 두 값은 동일하다고 인지합니다.
+
+변수가 아닌 특정 리터럴 값 또한 비교할 수 있습니다. `truthiness narrowing` 부분에서 `printAll`함수는 빈 문자열을 제대로 ㅓ처리하지 못하여 에러가 발생하였습니다. 대신에 우리는 `null`타입을 막는 검사를 추가하면 `strs`에서 `null`을 완전히 제거할 수 있습니다.
+
+```typescript
+function printAll(strs: string | string[] | null) {
+  if (strs !== null) {
+    if (typeof strs === "object") {
+      for (const s of strs) {
+        console.log(s);
+      }
+    } else if (typeof strs === "string") {
+      console.log(strs);
+    }
+  }
+}
+```
+
+자바스크립트에서 `==`와 `!=`와 같은 느슨한 비교 또한 정확하게 좁혀집니다. `== null`은 `null` 뿐만 아니라 `undefined` 또한 포함되며 그 반대도 성립됩니다.
+
+
+```typescript
+interface Container {
+  value: number | null | undefined;
+}
+ 
+function multiplyValue(container: Container, factor: number) {
+  // Remove both 'null' and 'undefined' from the type.
+  if (container.value != null) {
+    console.log(container.value);
+    // Now we can safely multiply 'container.value'.
+    container.value *= factor;
+  }
+}
+```
+
+### The `in` operator narrowing
+
 
