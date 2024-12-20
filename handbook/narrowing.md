@@ -213,4 +213,106 @@ function multiplyValue(container: Container, factor: number) {
 
 ### The `in` operator narrowing
 
+자바스크립트에는 객체이거나 그 프로토타입 체인에 특정 이름의 속성을 갖는지 확인하는 `in` 연산자가 있습니다. 타입스크립트는 이를 이용하여 타입을 좁혀가는 방식을 사용합니다.
 
+예를 들어, `value in x`에서 `value`는 문자열 리터럴이고 `x`는 유니온 타입입니다. true인 경우에 `x`는 필수 혹은 선택적(optional)으로 `value` 속성을 갖으며 false일 때는 선택적 혹은 `value`를 갖고 있지 않습니다.
+
+```typescript
+type Fish = { swim: () => void };
+type Bird = { fly: () => void };
+ 
+function move(animal: Fish | Bird) {
+  if ("swim" in animal) {
+    return animal.swim();
+  }
+ 
+  return animal.fly();
+}
+```
+
+다시 말해, 선택적 속성은 narrowing에서 양쪽 모두에서 등장할 수 있습니다. 예로 사람은 모두 수영을 하거나 날 수 있으며 그렇기에 `in` 검사에서 양쪽에 등장해야합니다.
+
+```typescript
+type Fish = { swim: () => void };
+type Bird = { fly: () => void };
+type Human = { swim?: () => void; fly?: () => void };
+ 
+function move(animal: Fish | Bird | Human) {
+  if ("swim" in animal) {
+    animal;
+ else {
+    animal;
+
+}
+```
+
+### `instanceof` narrowing
+
+자바스크립트는 하나의 값이 다른 값의 "인스턴스"인지 확인하는 연산자가 있습니다. 더 자세히는 `x instanceof Foo`는 `x`의 프로토타입 체인에 `Foo.prototype`이 있는지 검사하는 것입니다. 더 깊게 가진 않지만 클래스를 살펴볼 때 많이 접할 수 있을 것입니다. 이 연산자는 `new`와 함께할 때 더 실용적이거든요. `instanceof`는 type guard이며 타입스크립트는 `instaceof`를 통해 여러 분기로 좁혀 검사합니다.
+
+
+```typescript
+function logValue(x: Date | string) {
+  if (x instanceof Date) {
+    console.log(x.toUTCString());
+  } else {
+    console.log(x.toUpperCase());
+  }
+}
+```
+
+### Assignments
+
+아무런 변수에 할당을 할 때, 타입스크립트는 할당문의 오른쪽 값을 확인하고 왼쪽 변수의 타입을 좁힙니다.
+
+```typescript
+let x = Math.random() < 0.5 ? 10 : "hello world!"; //string | number
+x = 1; // number
+x = "goodbye!"; // string
+```
+
+각각의 할당이 유효하다는 점을 주목하세요. 첫 할당 이후에 `x`는 `number`로 변경되었음에도 여전히 문자열을 할당할 수 있습니다. 이것은 첫 할당 시에 `string | number`의 타입을 갖고 있었기 때문에 선언된 타입을 통해 할당 가능성(assignability) 을 검사하게 됩니다.
+
+만약 `x`에 `boolean`을 할당하려고 했으면 선언된 타입에 포함되지 않았기 때문에 오류가 발생했었을 것입니다.
+
+### Control flow analysis
+
+지금까지는 타입스크립트에서 특정 분기로 좁혀가는 방식을 예로 들며 봐왔습니다. 하지만 단순히 모든 변수를 따라 올라가며 `if`, `while`, 조건문 등에서 타입 가드를 찾는 것 이상으로 이루어집니다. 예를 들어,
+```typescript
+function padLeft(padding: number | string, input: string) {
+  if (typeof padding === "number") {
+    return " ".repeat(padding) + input;
+  }
+  return padding + input;
+}
+```
+
+`padLeft`는 첫 `if`문에서 반환되기 때문에 타입스크립트는 나머지 본문에 `padding`이 `number`인 경우에 도달할 수 없는 것을 파악합니다. 그 결과, 나머지 함수 내에 `padding`의 타입에서 `number`를 제거(`sting | number` 타입에서 좁히기)할 수 있었습니다.
+
+이와 같은 코드의 **도달 가능성에 따른 분석**을 **제어 흐름 분석(control flow analysis)** 라고 하며 타입스크립트는 이 흐름 분석을 타입 가드와 할당을 만날 때마다 활용하여 타입을 좁혀갑니다. 변수가 분석될 때, 제어 흐름은 여러 번 분기되고 병합될 수 있으며 각 지점마다 다른 타입으로 관찰될 수 있습니다.
+
+### Using type predicates
+
+지금까지는 현존하는 자바스크립트 구성에서 narrowing을 다루는 방식을 살펴보았지만 타입 변화에 대해 더 세밀한 조작을 원할 수도 있을 것입니다.
+
+사용자 정의 타입 가드를 정의하려면, **타입 술어(type predicate)** 를 반환하는 함수만 정의하면 됩니다.
+
+```typescript
+function isFish(pet: Fish | Bird): pet is Fish {
+  return (pet as Fish).swim !== undefined;
+}
+```
+
+`pet is Fish`는 타입 술어에 해당합니다. 술어는 `parameterName is Type`과 같은 형태를 띄며 `parameterName`은 현 함수 시그니처에서 매개변수의 이름이어야 한다.
+
+`isFish`가 다른 변수와 함께 사용될 때, 타입스크립트는 만약 기존 타입이 호환 가능하다면 특정 타입으로 좁혀집니다.
+
+```typescript
+let pet = getSmallPet();
+ 
+if (isFish(pet)) {
+  pet.swim();
+} else {
+  pet.fly();
+}
+```
