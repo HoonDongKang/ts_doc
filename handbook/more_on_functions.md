@@ -283,3 +283,91 @@ function greet(s: string) {
 
 - 타입 매개변수가 한 곳에서만 사용된다면 해당 타입 매개변수가 정말 필요한 지 신중히 고민하세요.
 
+### Optional Parameters
+
+자바스크립트에서 함수는 몇 개의 인수를 받지만 `toFixed`처럼 선택적으로 받기도 합니다.
+
+```ts
+function f(n: number) {
+  console.log(n.toFixed()); // 0 arguments
+  console.log(n.toFixed(3)); // 1 argument
+}
+```
+
+타입스크립트에서는 매개변수를 optional하게 받기 위해 `?`를 사용합니다.
+
+```ts
+function f(x?: number) {
+  // ...
+}
+f(); // OK
+f(10); // OK
+```
+
+매개변수가 `number` 타입이어도 `x`는 자바스크립트에서 특정되지 않는 매개변수는 `undefined`를 갖기에, 실제로 `number | undefined`로 타입을 형성할 것입니다.
+
+`f` 함수에서 `x`는 `undefined`한 인수들은 `10`으로 변경되기에 `number` 타입을 갖게 됩니다. 만약 매개변수가 optional하다면 호출자는 항상 `undefined`를 전달할 수 있다는 것이며 이는 단순히 누락된 인수를 시뮬레이션하는 것과 같습니다.
+
+```ts
+// All OK
+f();
+f(10);
+f(undefined);
+```
+
+#### Optional Parameters in Callbacks
+
+당신이 optional parameter와 함수 타입 표현식을 배웠다면, 다음 예제는 콜백함수를 호출하는 함수를 작성할 때 가장 접하기 쉬운 실수일 것입니다.
+
+```ts
+function myForEach(arr: any[], callback: (arg: any, index?: number) => void) {
+  for (let i = 0; i < arr.length; i++) {
+    callback(arr[i], i);
+  }
+}
+```
+
+사람들이 `index?`를 선택적 매개변수로 작성할 때, 일반적으로 의도하는 것은 아래 두 가지 호출 모두 유효하길 원한다는 것입니다.
+
+```ts
+myForEach([1, 2, 3], (a) => console.log(a));
+myForEach([1, 2, 3], (a, i) => console.log(a, i));
+```
+
+이것이 실제로 의미하는 바는, 콜백이 하나의 인수로 호출될 수 있다는 것입니다. 다시 말해, 함수 정의는 다음과 같이 구현됩니다.
+
+```ts
+function myForEach(arr: any[], callback: (arg: any, index?: number) => void) {
+  for (let i = 0; i < arr.length; i++) {
+    // I don't feel like providing the index today
+    callback(arr[i]);
+  }
+}
+```
+
+결과적으로 타입스크립트는 이 의미를 강제하며, 실제로 발생하지 않는 오류를 발생시킬 수 있습니다.
+
+```ts
+myForEach([1, 2, 3], (a, i) => {
+  console.log(i.toFixed());
+//'i' is possibly 'undefined'.
+});
+```
+
+자바스크립트에서 매개변수보다 더 많은 인수를 전달받을 경우, 초과된 인수들을 무시됩니다. **타입스크립트도 동일하게, 매개변수 수가 적더라도 함수의 타입이 호환된다면 더 많은 매개변수를 갖는 함수 자리에 사용될 수 있습니다.**
+
+
+```ts
+// 더 많은 매개변수를 갖는 타입
+type CallbackWithThreeParams = (a: number, b: number, c: number) => void;
+
+// 매개변수 수가 적은 함수
+const callbackWithTwoParams: (a: number, b: number) => void = (a, b) => {
+    console.log(a, b);
+};
+
+// 함수 타입이 호환되지만 초과된 매개변수는 무시
+const example: CallbackWithThreeParams = callbackWithTwoParams;
+
+example(1, 2, 3); // 1, 2
+```
