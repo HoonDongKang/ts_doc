@@ -371,3 +371,158 @@ const example: CallbackWithThreeParams = callbackWithTwoParams;
 
 example(1, 2, 3); // 1, 2
 ```
+
+### Function Overloads
+몇몇 자바스크립트 함수들은 다양한 개수와 타입의 인수들과 함께 호출됩니다. 예를 들어, 당신은 타임스탬프를 지정(하나의 인수로)하거나 월/일/년(세 개의 인수)를 받아 `Date`를 생성하는 함수를 작성할 수 있습니다.
+
+타입스크립트에서는 `overload signatrues`를 통해 함수를 다양한 방식으로 호출할 수 있습니다. 이를 위해, 두 개 이상의 함수 시그니처를 정의해봅시다.
+
+```ts
+function makeDate(timestamp: number): Date;
+function makeDate(m: number, d: number, y: number): Date;
+function makeDate(mOrTimestamp: number, d?: number, y?: number): Date {
+  if (d !== undefined && y !== undefined) {
+    return new Date(y, mOrTimestamp, d);
+  } else {
+    return new Date(mOrTimestamp);
+  }
+}
+const d1 = makeDate(12345678);
+const d2 = makeDate(5, 5, 5);
+
+const d3 = makeDate(1, 3);
+//No overload expects 2 arguments, but overloads do exist that expect either 1 or 3 arguments.
+```
+
+위 예제에서 두 개의 오버로드를 작성하였습니다. 하나는 하나의 인수를 받고 다른 하나는 3개의 인수를 받습니다.
+
+
+그 다음 우리는 호환 가능한 시그니처를 가진 함수 구현을 작성하였습니다. 함수들은 구현 시그니처를 가지고 있지만, 이 시그니처를 직접 호출할 수 는 없습니다. 필수 매개변수 하나 뒤에 두 개의 선택적 매개변수를 작성했음에도 두 개의 매개변수로 호출할 수 없습니다.
+
+#### Overload Signatures and the Implementation Signature
+
+이것은 흔히 혼란을 일으키는 문제입니다. 사람들은 이렇게 코드를 작성하고 왜 오류가 발생하는 지 알지 못합니다.
+
+```ts
+function fn(x: string): void;
+function fn() {
+  // ...
+}
+// Expected to be able to call with zero arguments
+fn();
+Expected 1 arguments, but got 0.
+```
+
+함수 본문을 작성하는데 사용된 시그니처는 외부에서 보이지 않습니다.
+- 구현의 시그니처는 외부에서 볼 수 없습니다. 오버로드 된 함수를 작성할 때 당신은 항상 두개 이상의 시그니처를 함수 구현 위에 작성하여야 합니다.
+
+구현 시그니처는 오버로드된 시그니처와 호환되어야 합니다. 예로 이러한 함수들은 구현된 시그니처가 오버로드된 시그니처와 일치하지 않아 발생하는 오류입니다.
+
+```ts
+function fn(x: boolean): void;
+
+// Argument type isn't right
+function fn(x: string): void;
+//This overload signature is not compatible with its implementation signature.
+
+function fn(x: boolean) {}
+
+////////////////////////////////////////////////////////
+
+function fn(x: string): string;
+
+// Return type isn't right
+function fn(x: number): boolean;
+//This overload signature is not compatible with its implementation signature.
+
+function fn(x: string | number) {
+  return "oops";
+}
+```
+
+### Writing Good Overloads
+
+제네릭처럼 함수 오버로드를 작성하기 위해 따라야할 몇가지 가이드라인이 있습니다. 이러한 원칙들을 따르는 것은 당신이 작성한 함수가 더 쉽게 호출되고, 쉽게 이해되며 쉽게 구현하게 만들어줍니다.
+
+문자열 혹은 배열의 길이를 반환하는 함수를 작성해봅시다.
+
+```ts
+function len(s: string): number;
+function len(arr: any[]): number;
+function len(x: any) {
+  return x.length;
+}
+```
+
+해당 함수는 문자열들 혹은 배열로 호출되니 괜찮아보이지만 문자열일 수도 있고 배열일 수도 있는 값을 사용하여 호출할 수는 없습니다.
+
+왜냐하면 타입스크립트는 **함수 호출을 단일 오버로드에만 매핑**할 수 있기 때문입니다.
+
+```ts
+len(""); // OK
+len([0]); // OK
+len(Math.random() > 0.5 ? "hello" : [0]);
+//No overload matches this call.
+//  Overload 1 of 2, '(s: string): number', gave the following error.
+//    Argument of type 'number[] | "hello"' is not assignable to parameter of type 'string'.
+//      Type 'number[]' is not assignable to type 'string'.
+//  Overload 2 of 2, '(arr: any[]): number', gave the following error.
+//    Argument of type 'number[] | "hello"' is not assignable to parameter of type 'any[]'.
+//      Type 'string' is not assignable to type 'any[]'.
+```
+
+두 오버로드 모두 같은 인수 개수와 같은 반환 타입을 갖고 있기 때문에 우리는 해당 함수를 오버로드 하지 않고 작성해야 합니다.
+
+```ts
+function len(x: any[] | string) {
+  return x.length;
+}
+```
+
+호출자는 두 가지 유형의 값으로 이 함수를 호출할 수 있고 올바른 구현 시그니처를 고민할 필요가 없어집니다.
+
+- 가능한 경우 오버로드보다 유니온 타입을 선호하는 매개변수를 사용하세요.
+
+### Declaring `this` in a Function
+
+타입스크립트는 코드 흐름 분석을 통해 함수 내에서 `this`가 무엇이어야 하는지 추론합니다.
+
+```ts
+const user = {
+  id: 123,
+ 
+  admin: false,
+  becomeAdmin: function () {
+    this.admin = true;
+  },
+};
+```
+타입스크립트는 `user.becomeAdmin` 함수가 외부 객체 `user`에 `this`가 일치한다는 것을 알고 있습니다. `this`가 어떤 객체를 나타내는 지에 대해 더 많은 제어가 필요한 경우도 있습니다.
+
+자바스크립트 명세에 따르면 `this`는 함수 매개변수로 사용할 수 없습니다. 타입스크립트는 함수 본문에서 구문적 공간을 사용하여 `this`의 타입을 선언하도록 지원합니다.
+
+```ts
+interface DB {
+  filterUsers(filter: (this: User) => boolean): User[];
+}
+ 
+const db = getDB();
+const admins = db.filterUsers(function (this: User) {
+  return this.admin;
+});
+```
+
+이러한 패턴은 흔히 콜백 스타일의 API에서 자주 사용됩니다. 이런 경우 다른 객체가 보통 언제 당신의 함수가 호출될 지를 제어합니다. 이러한 동작을 사용하려면 화살표 함수가 아닌 `function`을 사용해야 합니다.
+
+```ts
+interface DB {
+  filterUsers(filter: (this: User) => boolean): User[];
+}
+ 
+const db = getDB();
+const admins = db.filterUsers(() => this.admin);
+//The containing arrow function captures the global value of 'this'.
+//Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+```
+
+### Other Types to Know About
