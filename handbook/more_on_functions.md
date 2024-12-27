@@ -526,3 +526,219 @@ const admins = db.filterUsers(() => this.admin);
 ```
 
 ### Other Types to Know About
+
+함수 타입을 다루면서 등장하는 또다른 타입들을 접하신 적이 있으실 겁니다. 모든 타입들처럼 당신도 모든 곳에서 사용할 수 있지만 아래 타입들은 특히 함수 문맥에서 관련이 깊습니다.
+
+#### `void`
+
+`void`는 반환하지 않는 함수에서 반환할 때 사용됩니다. 함수에서 `return` 문이 존재하지 않거나 명시하지 않았을 경우에 추론되는 타입입니다.
+
+```ts
+// The inferred return type is void
+function noop() {
+  return;
+}
+```
+
+자바스크립트에서 값을 반환하지 않는 함수는 암묵적으로 `undefined`값을 반환합니다. 하지만 **타입스크립트에서 `void`와 `undefined`는 동일하지 않습니다. **
+
+#### `object`
+
+원시값(`string`, `number`, `bigint`, `boolean`, `symbol`, `null`, `undefined`)이 아닌 모든 값은 `object` 타입입니다. 이것은 빈 객체 타입(`{}`)와는 다릅니다. 또한 전역 타입 `Object` 과도 다릅니다. 대부분의 경우, `Object`타입은 거의 사용하지 않습니다.
+ 
+ - `object`는 `Object`가 아닙니다. 항상 `object`를 사용하세요.
+ 
+자바스크립트에서 함수는 객체입니다. 함수는 속성을 가질 수 있고 `Object.prototype`이 프로토타입 체인에 포함되며 `instanceof Object`에도 해당되고 `Object.keys`를 호출할 수도 있습니다.
+ 
+ 이러한 이유로 함수는 타입스크립트에서 `object`로 간주됩니다.
+ 
+ #### `unknown` 
+ 
+ `unknown`타입은 모든 값을 나타냅니다. `any`타입과 유사하지만 `unknown` 값으로 어떠한 작업도 수행할 수 없기 때문에 더 안전합니다.
+ 
+ ```ts
+function f1(a: any) {
+  a.b(); // OK
+}
+function f2(a: unknown) {
+  a.b();
+//'a' is of type 'unknown'.
+}
+```
+
+이것은 함수 타입을 설명할 때 유용합니다. 함수 본문에 `any`타입이 아닌 모든 값들을 받을 때 유용합니다.
+
+반대로 반환 값의 타입을 알 수 없을 때도 사용 가능합니다.
+
+```ts
+function safeParse(s: string): unknown {
+  return JSON.parse(s);
+}
+ 
+// Need to be careful with 'obj'!
+const obj = safeParse(someRandomString);
+```
+
+#### `never`
+반환값이 절대 존재하지 않는 함수도 있다.
+
+```ts
+function fail(msg: string): never {
+  throw new Error(msg);
+}
+```
+
+`never`타입은 절대로 관찰될 수 없는 값을 의미합니다. 해당 타입의 반환값은 예외 처리하거나 프로그램의 종료를 의미합니다.
+
+`never`는 또한 타입스크립트 유니온 타입에서 더이상 남지 않았을 경우에 등장합니다.
+
+```ts
+function fn(x: string | number) {
+  if (typeof x === "string") {
+    // do something
+  } else if (typeof x === "number") {
+    // do something else
+  } else {
+    x; // has type 'never'!
+  }
+}
+```
+
+#### Function
+전역 타입 `Function`은 자바스크립트의 모든 함수 값에 존재하는 `bind`, `call`, `apply` 와 같은 속성을 설명합니다. 또한 `Function` 타입의 값은 항상 호출할 수 있는 특별한 속성을 가지며 해당 호출은 `any`를 반환합니다.
+
+```ts
+function doSomething(f: Function) {
+  return f(1, 2, 3);
+}
+```
+
+이것은 타입이 지정되지 않은 함수 호출이며 `any`를 반환하기 때문에 일반적으로 피하는 것이 좋습니다. 만약 당신이 임의를 함수를 받아야 하지만 호출할 의도가 없다면 `() => void` 처럼 타입을 지정하는 것이 더 안전합니다.
+
+### Rest Parameters and Arguments
+
+#### Rest Parameters
+고정된 인수의 개수를 넘어 다양한 인수를 받기 위해 선택적 매개변수 혹은 오버로드를 사용하는 것 이외에도 `rest parameters`를 통해 무제한 개수의 인수를 받는 함수를 저으이할 수 있습니다.
+
+`rest parameter`는 다른 모든 매개변수 뒤에 나타나며, `...`문법을 사용합니다.
+
+```ts
+function multiply(n: number, ...m: number[]) {
+  return m.map((x) => n * x);
+}
+// 'a' gets value [10, 20, 30, 40]
+const a = multiply(10, 1, 2, 3, 4);0
+```
+
+타입스크립트에서 이런 매개변수에 대한 타입 지정은 암묵적으로 `any[]`타입을 갖으며 모든 타입 지정은 `Array<T>` 혹은 `T[]`, 튜플 타입이어야 합니다.
+
+#### Rest Arguments
+
+반대로, 이터러블 객체에서 가변적인 수의 인수를 제공하려면 spread 문법을 사용할 수 있습니다. 예를 들어 `push` 배열 메서드는 가변적인 수의 인수도 받을 수 있습니다.
+
+```ts
+const arr1 = [1, 2, 3];
+const arr2 = [4, 5, 6];
+arr1.push(...arr2);
+```
+
+일반적으로 타입스크립트는 배열이 불변하다고 가정하지 않습니다. 이것은 예상치 못한 동작을 야기할 수 있습니다.
+```ts
+// Inferred type is number[] -- "an array with zero or more numbers",
+// not specifically two numbers
+const args = [8, 5];
+const angle = Math.atan2(...args);
+//A spread argument must either have a tuple type or be passed to a rest parameter.
+
+
+// Inferred as 2-length tuple
+const args = [8, 5] as const;
+// OK
+const angle = Math.atan2(...args);
+```
+
+
+### Parameter Destructuring
+
+구조분해를 사용하면 함수 본문에서 인수로 제공된 객체를 하나 이상의 지역 변수로 편리하게 풀어낼 수 있습니다. 자바스크립트에서는 다음과 같습니다.
+
+```js
+function sum({ a, b, c }) {
+  console.log(a + b + c);
+}
+sum({ a: 10, b: 3, c: 9 });
+```
+
+구조 분해한 객체의 타입 지정은 다음과 같습니다.
+```ts
+function sum({ a, b, c }: { a: number; b: number; c: number }) {
+  console.log(a + b + c);
+}
+```
+
+다소 장황해보일 수 있지만 이름이 지정된 타입을 사용할 수 있습니다.
+
+```ts
+// Same as prior example
+type ABC = { a: number; b: number; c: number };
+function sum({ a, b, c }: ABC) {
+  console.log(a + b + c);
+}
+```
+
+### Assignability of Functions
+
+#### Return type `void`
+
+함수의 반환 값의 타입이 `void` 인 경우는 일반적이진 않지만 예상되는 동작을 할 수 있습니다.
+
+`void`반환 타입을 가진 함수에 대한 문맥적 타이핑은 함수의 값은 반환하지 않도록 강제하지 않습니다. 다시 말해, `void` 반환 타입을 가진 문맥적 함수 타입(`type voidFunc = () => void`) 은 구현 시 다른 값을 반환할 수 있지만 그 값은 무시됩니다.
+
+따라서 다음과 같은 `() => void` 타입의 구현은 유효합니다.
+
+```ts
+type voidFunc = () => void;
+ 
+const f1: voidFunc = () => {
+  return true;
+};
+ 
+const f2: voidFunc = () => true;
+ 
+const f3: voidFunc = function () {
+  return true;
+};
+
+// 해당 함수들로부터 값을 반환받아도 void 타입을 유지한다.
+
+const v1 = f1(); //void
+ 
+const v2 = f2(); //void
+ 
+const v3 = f3(); //void
+```
+
+이 동작은 `Array.prototyp.push`가 숫자를 반환하고 `Array.prototyp.forEach`가 `void`반환 타입을 가진 함수를 인자로 받길 기대하는 경우에도 유효하도록 하기 위해 존재합니다.
+
+```ts
+const src = [1, 2, 3];
+const dst = [0];
+ 
+src.forEach((el) => dst.push(el));
+// push는 number를 반환하지만 forEach는 void를 반환하는 함수를 받음
+// 하지만 void는 결국 인수로 다 받을 수는 있음(어차피 할당되면 void)
+```
+
+리터럴 함수 정의에서 반환 타입이 `void`인 경우, 그 함수는 아무 것도 반환할 수 없습니다.
+
+```ts
+function f2(): void {
+  // @ts-expect-error
+  return true;
+}
+ 
+const f3 = function (): void {
+  // @ts-expect-error
+  return true;
+};
+```
