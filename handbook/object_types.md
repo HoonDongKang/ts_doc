@@ -100,3 +100,36 @@ function paintShape({ shape, xPos = 0, yPos = 0 }: PaintOptions) {
 }
 ```
 
+ `paintShape`의 매개변수에 구조 분해 할당을 사용하고 `xPos`와 `yPos`에 기본값을 제공하였습니다. 이제 `xPost`와 `yPos` 모두 확실히 존재하지만 `paintShape`를 호출하는 쪽에서 선택적으로 전달할 수 있습니다.
+
+ 현재 구조 분해 패턴 내에 타입 주석을 추가하는 방법은 없습니다. 이는 다음과 같은 뭄법이 이미 자바스크립트에서 다른 의미를 가지고 있기 때문입니다.
+
+ ```js
+ function draw({ shape: Shape, xPos: number = 100 /*...*/ }) {
+  render(shape);
+//Cannot find name 'shape'. Did you mean 'Shape'?
+  render(xPos);
+//Cannot find name 'xPos'.
+}
+ ```
+
+ 객체 구조분해 패턴에서 `shape: Shape`는 "속성 `shape`를 가져와 로컬 변수 `Shape`로 재정의한다"라는 의미를 갖습니다. 마찬가지로 `xPos: number`는 매개변수 `xPos`값을 기반으로 변수 `numver`를 생성합니다.
+
+ #### `readonly` Properties
+
+ 타입스크립트에서 속성들은 `readonly`로 설정될 수 있습니다. 이는 런타임에서 동작에 아무런 영향을 주지 않지만, 타입 검사를 수행하는 동안 `readonly`로 설정된 속성들은 쓸 수 없게 만듭니다.
+
+ ```ts
+interface SomeType {
+  readonly prop: string;
+}
+ 
+function doSomething(obj: SomeType) {
+  // We can read from 'obj.prop'.
+  console.log(`prop has the value '${obj.prop}'.`);
+ 
+  // But we can't re-assign it.
+  obj.prop = "hello";
+//Cannot assign to 'prop' because it is a read-only property.
+}
+```
