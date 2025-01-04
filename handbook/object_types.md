@@ -133,3 +133,4 @@ function doSomething(obj: SomeType) {
 //Cannot assign to 'prop' because it is a read-only property.
 }
 ```
+..
