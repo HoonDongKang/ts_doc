@@ -319,4 +319,277 @@ let mySquare = createSquare(squareOptions);
 
 즉, option bag 와 같은 상황에서 초과 속성 검사 문제가 발생한다면 타입 선언을 수정해야할 수도 있습니다. 예를 들어 `createSquare`에 `color`나 `colour`속성이 전달되어도 상관없다면 `SquareConfig`에 정의를 수정하여 이를 반영하여야 합니다.
 
-..
+
+### Extending Types
+
+
+미국에서 편지나 소포를 보내는데 필요한 필드들을 설명하는 `BasicAddress`처럼 더 구체적인 버전의 타입을 사용할 때도 있습니다.
+
+```ts
+interface BasicAddress {
+  name?: string;
+  street: string;
+  city: string;
+  country: string;
+  postalCode: string;
+}
+```
+
+이 정도로 충분할 수도 있지만 주소에는 유닛 번호가 포함되어야 할 수도 있습니다. `AddressWithUnit`은 이렇게 생성될 수 있습니다.
+
+```ts
+interface AddressWithUnit {
+  name?: string;
+  unit: string;
+  street: string;
+  city: string;
+  country: string;
+  postalCode: string;
+}
+```
+
+이렇게 해도 동작은 잘하지만 변경 사항이 단순히 추가된 것임에도 `BasicAdress`의 모든 필드를 반복해야한다는 단점이 있습니다. 대신 우리는 `BasicAddress` 유형을 확장하고 `AddressWithUnit`에 고유한 새 필드만 추가할 수 있습니다.
+
+`interface`에 `extends`를 사용하면 기존 타입의 속성들을 효과적으로 복사하여 새로운 속성들을 추가할 수 있습니다. 이것은 타입 선언의 반복 작업을 줄이는데 효율적일 뿐만 아니라 동일한 속성의 여러 선언들이 연관되어 있음을 나타내는 데에도 도움을 줍니다.
+
+예를 들어 `AddressWithUnit`은 `street`이 `BasicAddress`에서 유래하여 반복할 필요가 없으며 사용자는 해당 두 타입들이 연관되어 있음을 알 수 있습니다.
+
+`interface`은 다양하게 확장될 수 있습니다.
+
+```ts
+interface Colorful {
+  color: string;
+}
+ 
+interface Circle {
+  radius: number;
+}
+ 
+interface ColorfulCircle extends Colorful, Circle {}
+ 
+const cc: ColorfulCircle = {
+  color: "red",
+  radius: 42,
+};
+```
+
+### Intersection Types
+
+`interface`는 다른 타입들 위에 새로운 타입들을 추가함으로써 확장시킬 수 있습니다. 타입스크립트는 교차 타입(`intersection`)을 제공하며, 기존 객체를 결합하는데 주로 사용됩니다.
+
+교차 타입은 `&` 연산자를 사용합니다.
+
+```ts
+interface Colorful {
+  color: string;
+}
+interface Circle {
+  radius: number;
+}
+ 
+type ColorfulCircle = Colorful & Circle;
+```
+
+여기서 `Colorful`과 `Circle`을 교차하여 두 타입의 모든 속성들을 갖는 새로운 타입을 생성하였습니다.
+
+```ts
+function draw(circle: Colorful & Circle) {
+  console.log(`Color was ${circle.color}`);
+  console.log(`Radius was ${circle.radius}`);
+}
+ 
+// okay
+draw({ color: "blue", radius: 42 });
+ 
+// oops
+draw({ color: "red", raidus: 42 });
+//oject literal may only specify known properties, but 'raidus' does not exist in type 'Colorful & Circle'. Did you mean to write 'radius'?
+```
+
+
+### Interface Extension vs. Intersection
+
+우리는 방금 두 가지 타입 결합 방식을 살펴보았는데, 이들은 비슷하지만 실제로 미묘하게 다릅니다. `interface`에서는 `extends`절을 사용하여 다른 타입을 확장시킬 수 있었고 교차타입에서는 이를 유사하게 구현하여 결과를 타입 별칠으오 이름 지을 수 있었습니다.
+
+두 방식의 주요 차이점은 충돌을 처리하는 방식이며, 이 차이점은 인터페이스와 교차 타입 중 하나를 선택해야할 때 고려할 대표적인 이유입니다.
+
+만약 인터페이스가 동일한 이름으로 정의되었다면 타입스크립트는 해당 속성이 호환이 가능한 경우 병합하려고 시도합니다. 하지만 호환되지 않는다면(동일한 이름을 갖지만 다른 타입을 갖는 경우) 에러를 발생시킵니다.
+
+교차 타입의 경우 서로 다른 타입을 가진 속성은 자동으로 병합됩니다. 타입이 나중에 사용될 때, 타입스크립트는 동시에 두 타입을 모두 만족해야한다고 간주하기 때문에 예상치 못한 결과를 초래할 수 있습니다.
+
+예를 들어, 아래 코드는 속성들이 호환될 수 없기 때문에 에러가 발생합니다.
+```ts
+interface Person {
+  name: string;
+}
+interface Person {
+  name: number;
+}
+```
+반대로 아래 코드는 컴파일은 되지만 `never`타입을 갖게 됩니다.
+```ts
+interface Person1 {
+  name: string;
+}
+ 
+interface Person2 {
+  name: number;
+}
+ 
+type Staff = Person1 & Person2
+ 
+declare const staffer: Staff;
+staffer.name;
+         //(property) name: never
+```
+
+이런 상황에서 `Staff`는 `name`속성으로 `string`과 `number`를 모두 요구하기에 `never`타입이 됩니다.
+
+### Generic Object Types
+`Box`타입이 `string`이나 `number` 혹은 `Giraffe`와 같은 아무런 값을 포함한다고 상상해봅시다.
+
+```ts
+interface Box {
+  contents: any;
+}
+```
+
+`contents` 속성의 타입은 `any`로, 동작은 하겠지만 사고로 이어질 수 있습니다.
+
+`unknown`을 사용할 수도 있지만 이미 `contents`의 타입을 알고 있는 경우에도 예방적인 체크가 필요하거나 오류를 유발할 수 있는 타입 단언(`type assertion`)을 사용해야 합니다.
+
+```ts
+interface Box {
+  contents: unknown;
+}
+ 
+let x: Box = {
+  contents: "hello world",
+};
+ 
+// we could check 'x.contents'
+if (typeof x.contents === "string") {
+  console.log(x.contents.toLowerCase());
+}
+ 
+// or we could use a type assertion
+console.log((x.contents as string).toLowerCase());
+```
+
+한 가지 안전한 방법은 각각의 `contents` 타입에 대해 서로 다른 `Box` 타입을 설계하는 것입니다.
+
+```ts
+interface NumberBox {
+  contents: number;
+}
+ 
+interface StringBox {
+  contents: string;
+}
+ 
+interface BooleanBox {
+  contents: boolean;
+}
+```
+
+하지만 이것은 우리가 해당 함수를 사용하기 위해 서로 다른 함수들을 생성하고 오버로드 해야한다는 것입니다.
+
+```ts
+function setContents(box: StringBox, newContents: string): void;
+function setContents(box: NumberBox, newContents: number): void;
+function setContents(box: BooleanBox, newContents: boolean): void;
+function setContents(box: { contents: any }, newContents: any) {
+  box.contents = newContents;
+}
+```
+
+복사본이 너무 많습니다. 더욱이 우리는 새로운 타입과 오버로드들을 더 생성해야할 수도 있습니다. 상자의 타입들과 오버로드들은 사실상 모두 동일하기 때문에 절망적입니다.
+
+대신에 우리는 제네릭 `Box`타입을 이용하여 타입 파라미터를 선언할 수 있습니다.
+
+```ts
+interface Box<Type> {
+  contents: Type;
+}
+```
+
+`Type`의 `Box`는 `contents`의 `Type`을 갖는 것이라고 읽을 수 있습니다. 나중에 `box`를 참조할 때, 우리는 `type` 대신 타입 인수를 제공해야 합니다.
+
+```ts
+let box: Box<string>;
+```
+
+`Box`를 실제 타입에 대한 템플릿으로 생각하면 됩니다. `Type`은 다른 타입으로 대체될 대체자입니다. 타입스크립트가 `Box<string>`을 발견하면 `Box<Type>`의 `Type`을 `String`으로 모두 대체하고 `{ contents: string }` 처럼 작동하게 됩니다. 다시 말해, `Box<string>`은 `StringBox`와 동일하게 동작합니다.
+
+```ts
+interface Box<Type> {
+  contents: Type;
+}
+interface StringBox {
+  contents: string;
+}
+ 
+let boxA: Box<string> = { contents: "hello" };
+boxA.contents;
+        
+//(property) Box<string>.contents: string
+ 
+let boxB: StringBox = { contents: "world" };
+boxB.contents;
+        
+//(property) StringBox.contents: string
+```
+
+`Type`은 어떤 타입으로든 대체될 수 있기 때문에 `Box`은 재사용이 가능합니다. 이 말은 새로운 타입의 박스가 필요하면 새로운 `Box`를 선언할 필요가 없다는 것을 의미합니다.
+
+```ts
+interface Box<Type> {
+  contents: Type;
+}
+ 
+interface Apple {
+  // ....
+}
+ 
+// Same as '{ contents: Apple }'.
+type AppleBox = Box<Apple>;
+```
+
+이것은 또한 generic functions을 사용하여 오버로드를 회피할 수 있다는 의미입니다.
+```ts
+function setContents<Type>(box: Box<Type>, newContents: Type) {
+  box.contents = newContents;
+}
+```
+
+타입 별칭(`type aliases`)는 제네릭일 수 있다는 점을 주목할 필요가 있습니다. 우리는 새로운 `Box<Type>`인터페이스를 선언할 수 있습니다.
+
+```ts
+interface Box<Type> {
+  contents: Type;
+}
+```
+
+타입 별칭을 사용하기 대신에요
+```ts
+type Box<Type> = {
+  contents: Type;
+};
+```
+
+타입 별칭은 인터페이스와 달리 객체 타입 뿐만 아니라 다른 종류의 타입도 설명할 수 있기 때문에, 이를 사용하여 다양한 종류의 제네릭 헬퍼 타입들을 작성할 수 있습니다.
+
+
+```ts
+type OrNull<Type> = Type | null;
+ 
+type OneOrMany<Type> = Type | Type[];
+ 
+type OneOrManyOrNull<Type> = OrNull<OneOrMany<Type>>;
+           
+//type OneOrManyOrNull<Type> = OneOrMany<Type> | null
+ 
+type OneOrManyOrNullStrings = OneOrManyOrNull<string>;
+               
+//type OneOrManyOrNullStrings = OneOrMany<string> | null
+```
