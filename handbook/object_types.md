@@ -593,3 +593,139 @@ type OneOrManyOrNullStrings = OneOrManyOrNull<string>;
                
 //type OneOrManyOrNullStrings = OneOrMany<string> | null
 ```
+
+#### The `Array` Type
+
+제네릭 객체 타입은 보통 특정 요소의 타입과 독립으로 작동하는 일종의 컨테이너 타입입니다.데이터 구조가 이렇게 동작하는 것은 이상적이며 이를 통해 다양한 데이터 타입을 재사용할 수 있습니다.
+
+이 핸드북에서 우리가 계속 사용해 온 타입 중 하나가 바로 이런 타입인데, 그것은 바로 배열 타입입니다. 우리가 사용하는 `number[]`나 `string[]`은 사실상 `Array<number>`나 `Array<string>`의 축약형입니다.
+
+```ts
+function doSomething(value: Array<string>) {
+  // ...
+}
+ 
+let myArray: string[] = ["hello", "world"];
+ 
+// either of these work!
+doSomething(myArray);
+doSomething(new Array("hello", "world"));
+```
+
+`Box`타입처럼 `Array` 그 자체로도 제네릭 타입입니다.
+```ts
+interface Array<Type> {
+//Global type 'Array' must have 1 type parameter(s).
+All declarations of 'Array' must have identical type parameters.
+  /**
+   * Gets or sets the length of the array.
+   */
+  length: number;
+ 
+  /**
+   * Removes the last element from an array and returns it.
+   */
+  pop(): Type | undefined;
+ 
+  /**
+   * Appends new elements to an array, and returns the new length of the array.
+   */
+  push(...items: Type[]): number;
+//A rest parameter must be of an array type.
+ 
+  // ...
+}
+```
+
+모던 자바스크립트 또한 `Map<K, V>`나 `Set<T>`, `Promise<T>`같은 제네릭의 데이터 구조를 제공합니다. 즉, `Map`, `Set`, `Promise` 작동방식 덕에 어떠한 타입과도 함께 사용할 수 있다는 것입니다.
+
+#### The `ReadonlyArray` type
+
+`ReadonlyArray` 은 변하지 않는 배열을 설명하는 특별한 타입입니다.
+
+```ts
+function doStuff(values: ReadonlyArray<string>) {
+  // We can read from 'values'...
+  const copy = values.slice();
+  console.log(`The first value is ${values[0]}`);
+ 
+  // ...but we can't mutate 'values'.
+  values.push("hello!");
+//Property 'push' does not exist on type 'readonly string[]'.
+}
+```
+
+`readonly` 수정자와 마찬가지로 이것은 주로 의도를 전달하기 위한 도구입니다. 만약 함수가 `ReadonlyArray`를 반환한다면 그 내용을 전혀 변경해서는 안되는다는 것을 알려줍니다. 반대로 함수가 `ReadonlyArray`를 매개변수로 받는다면, 해당 함수에 어떠한 함수를 전달해도 배열이 변경되지 않는다는 것을 알 수 있습니다.
+
+`Array`와 달리 `ReadonlyArray` 생성자는 존재하지 않습니다.
+
+```ts
+new ReadonlyArray("red", "green", "blue");
+//readonlyArray' only refers to a type, but is being used as a value here.
+```
+
+대신 `Array`에 `ReadonlyArray`에 할당이 가능합니다.
+
+```ts
+const roArray: ReadonlyArray<string> = ["red", "green", "blue"];
+```
+
+타입스크립트가 `Array<Type>`의 축약형 `Type[]`이 있는 것처럼 `ReadonlyArray>Type>`은 `readonly Type[]`으로 사용할 수 있습니다.
+
+```ts
+let x: readonly string[] = [];
+let y: string[] = [];
+ 
+x = y;
+y = x;
+//The type 'readonly string[]' is 'readonly' and cannot be assigned to the mutable type 'string[]'.
+```
+
+#### Tuple Types
+튜플 타입은 또 다른 형태의 배열 타입으로, 몇 개의 요소를 포함하는지와 특정 위치에 어떤 타입의 요소가 있는지를 정확히 알고 있는 타입입니다.
+
+```ts
+type StringNumberPair = [string, number];
+```
+
+`StringNumberPair`은 `string`과 `number`의 튜플 타입이다. `ReadonlyArray`처럼 런타임에 별도의 영향을 끼치진 않지만 타입스크립트에서는 중요한 역활을 합니다. 타입 시스템 관점에서 `StringNumberPair`는 0번째 인덱스에 문자열, 1번째 인덱스에 숫자가 들어 있는 배열을 의미합니다.
+
+```ts
+function doSomething(pair: [string, number]) {
+  const a = pair[0];
+       //const a: string
+  const b = pair[1];
+       //const b: number
+  // ...
+}
+ 
+doSomething(["hello", 42]);
+```
+
+만약 인덱스를 초과한 값에 접근하면 에러가 발생됩니다.
+
+```ts
+function doSomething(pair: [string, number]) {
+  // ...
+ 
+  const c = pair[2];
+//Tuple type '[string, number]' of length '2' has no element at index '2'.
+}
+```
+
+자바스크립트의 구조 분해 할당처럼 튜플도 구조분해가 가능합니다.
+
+```ts
+function doSomething(stringHash: [string, number]) {
+  const [inputString, hash] = stringHash;
+ 
+  console.log(inputString);
+                  //const inputString: string
+ 
+  console.log(hash);
+               //const hash: number
+}
+```
+> 튜플 타입은 각 요소의 의미가 명확한 강한 규칙 기반의 API에서 유용합니다. 이를 통해 구조 분해를 할 때 변수 이름을 원하는대로 지정할 수 있는 유연성을 제공합니다. 위 예시 처럼 0번과 1번 요소에 원하는 이름을 자유롭게 붙일 수 있습니다.
+
+> 그러나 모든 사용자가 "명확"하다고 여기는 기준이 같지 않을 수 있으므로 설명적인 프로퍼티 이름을 가진 객체를 사용하는 것이 API 설계에 더 적합한지 고민해볼 필요가 있습니다.
