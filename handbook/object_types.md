@@ -729,3 +729,89 @@ function doSomething(stringHash: [string, number]) {
 > 튜플 타입은 각 요소의 의미가 명확한 강한 규칙 기반의 API에서 유용합니다. 이를 통해 구조 분해를 할 때 변수 이름을 원하는대로 지정할 수 있는 유연성을 제공합니다. 위 예시 처럼 0번과 1번 요소에 원하는 이름을 자유롭게 붙일 수 있습니다.
 
 > 그러나 모든 사용자가 "명확"하다고 여기는 기준이 같지 않을 수 있으므로 설명적인 프로퍼티 이름을 가진 객체를 사용하는 것이 API 설계에 더 적합한지 고민해볼 필요가 있습니다.
+
+이런 단순한 튜플 타입은 길이 확인을 제외하면 특정 인덱스에 대한 프로퍼티와 숫자 리터럴 타입으로 길이를 선언하는 배열 타입과 동일합니다.
+
+```ts
+interface StringNumberPair {
+  // specialized properties
+  length: 2;
+  0: string;
+  1: number;
+ 
+  // Other 'Array<string | number>' members...
+  slice(start?: number, end?: number): Array<string | number>;
+}
+```
+
+물음표(`?`)를 통해 튜플에 optional properties 또한 설정할 수 있습니다. 선택적 프로퍼티 요소들은 마지막에만 사용할 수 있으며, `length`의 타입에도 영향을 줍니다.
+
+```ts
+type Either2dOr3d = [number, number, number?];
+ 
+function setCoordinate(coord: Either2dOr3d) {
+  const [x, y, z] = coord;
+              //const z: number | undefined
+ 
+  console.log(`Provided coordinates had ${coord.length} dimensions`);
+                                       			//(property) length: 2 | 3
+}
+```
+
+튜플은 또한 나머지 요소(rest elements)를 가질 수 있으며 이 나머지 요소는 반드시 배열 혹은 튜플이어야 합니다.
+
+```ts
+type StringNumberBooleans = [string, number, ...boolean[]];
+type StringBooleansNumber = [string, ...boolean[], number];
+type BooleansStringNumber = [...boolean[], string, number];
+```
+
+왜 optional 혹은 rest 요소들이 유용할까요? 이는 타입스크립트가 튜플을 매개변수 목록과 연결할 수 있도록 해줍니다. 튜플 타입은 [rest parameters and arguments](https://www.typescriptlang.org/docs/handbook/2/functions.html#rest-parameters-and-arguments)에 사용이 가능합니다.
+
+```ts
+function readButtonInput(...args: [string, number, ...boolean[]]) {
+  const [name, version, ...input] = args;
+  // ...
+}
+
+//동일한 함수
+
+function readButtonInput(name: string, version: number, ...input: boolean[]) {
+  // ...
+}
+```
+
+#### `readonly` Tuple Types
+튜플 타입에 대한 마지막 참고사항으로, `readonly`를 가질 수 있으며 이를 지정하려면 튜플 앞에 `readonly`를 붙이면 됩니다.
+
+```ts
+function doSomething(pair: readonly [string, number]) {
+  // ...
+}
+```
+
+타입스크립트에서 `readonly`로 설정된 모든 프로퍼티는 쓰는 것이 불가합니다.
+
+```ts
+function doSomething(pair: readonly [string, number]) {
+  pair[0] = "hello!";
+//Cannot assign to '0' because it is a read-only property.
+}
+
+```
+
+튜플은 대부분 코드 생성 후에 수정되지 않기에, `readonly` 튜플로 타입을 선언하는 것은 좋은 방법입니다. `const`로 단언된 배열 리터럴 또한 `readonly` 튜플 타입으로 참조된다는 것도 중요합니다.
+
+```ts
+let point = [3, 4] as const;
+ 
+function distanceFromOrigin([x, y]: [number, number]) {
+  return Math.sqrt(x ** 2 + y ** 2);
+}
+ 
+distanceFromOrigin(point);
+//Argument of type 'readonly [3, 4]' is not assignable to parameter of type '[number, number]'.
+  //The type 'readonly [3, 4]' is 'readonly' and cannot be assigned to the mutable type '[number, number]'.
+```
+
+`distanceFromOrigin`은 요소를 전혀 변경시키지 않지만 변경가능한 튜플을 기대합니다. `point`의 타입이 `readonly [3, 4]`로 추론되었기 때문에, `[number, number]` 타입이 `point`의 요소가 변경되지 않을 것이라는 걸 보장하지 않기에 호환되지 않습니다.
