@@ -100,5 +100,112 @@ function loggingIdentity<Type>(arg: Array<Type>): Array<Type> {
 여러 언어에서 이러한 스타일의 타입에 익숙할 수 있습니다. 다음 섹션에서는 `Array<Type>`과 같은 제네릭 타입을 직접 생성하는 방법을 다룰 것입니다.
 
 
+### Generic Types
+이전 섹션에서 우리는 여러 타입들과 함께 동작할 수 있는 제네릭 identity functions를 생성하였습니다. 이번 섹션에서는 함수 자체의 타입과 제네릭 인터페이스를 만드는 방법에 대해서 살펴볼 것입니다.
 
+제네릭 함수의 타입은 제네릭이 아닌 함수와 비슷하며 함수 선언문과 마찬가지로 타입 매개변수가 먼저 등장합니다.
 
+```ts
+function identity<Type>(arg: Type): Type {
+  return arg;
+}
+ 
+let myIdentity: <Type>(arg: Type) => Type = identity;
+```
+타입에서 제네릭 타입 매개변수의 이름을 다르게 사용할 수도 있습니다.단 타입 변수의 개수와 타입 변수가 사용되는 방식이 일치해야 합니다.
+
+```ts
+function identity<Type>(arg: Type): Type {
+  return arg;
+}
+ 
+let myIdentity: <Input>(arg: Input) => Input = identity;
+```
+
+제네릭 타입을 객체 리터럴 타입의 호출 시그니처(call signature)로 작성할 수 있습니다.
+```ts
+function identity<Type>(arg: Type): Type {
+  return arg;
+}
+ 
+let myIdentity: { <Type>(arg: Type): Type } = identity;
+```
+
+이제 첫 제네릭 인터페이스를 작성해보시다. 객체 리터럴을 가져와 인터페이스로 옮겨 보겠습니다.
+
+```ts
+interface GenericIdentityFn {
+  <Type>(arg: Type): Type;
+}
+ 
+function identity<Type>(arg: Type): Type {
+  return arg;
+}
+ 
+let myIdentity: GenericIdentityFn = identity;
+```
+
+비슷한 예로 우리는 제네릭 매개변수를 전체 인터페이스의 매개변수로 이동하고 싶을 수 있습니다. 이렇게 하면 우리가 어떤 타입에 대해 제네릭을 사용하는 지 명확히 알 수 있습니다.(`Dictionary` 대신 `Dictionary<string>`) 이것은 이는 인터페이스의 모든 요소에서 타입 매개변수를 사용할 수 있게 해줍니다.
+
+```ts
+interface GenericIdentityFn<Type> {
+  (arg: Type): Type;
+}
+ 
+function identity<Type>(arg: Type): Type {
+  return arg;
+}
+ 
+let myIdentity: GenericIdentityFn<number> = identity;
+```
+
+우리의 예제가 조금 달라졌다는 점에 대해 인지해 주세요. 제네릭 함수에 대해 설명하기 보다 우리는 제네릭 타입의 일부로서 비제네릭 함수 시그니처를 갖게 되었습니다.	`GenericIdentityFn`을 사용할 때, 우리는 호출 시그니처가 적용될 타입을 고정하기 위해 일치하는 타입 인수(`number`)를 명시해야 합니다.
+
+타입 매개변수를 **호출 시그니처에 직접 설정**할 지 혹은 **인터페이스 자체에 설정**할 지 이해하는 것은 타입의 어떤 측면이 제네릭인 지 설명하는데 유용할 것입니다.
+
+또한 제네릭 클래스도 생성할 수 있습니다. 다만 제네릭 enum이나 namespaces를 생성하는 것을 불가능합니다.
+
+### Generic Classes
+제네릭 클래스는 제네릭 인터페이스와 비슷한 형태를 갖춥니다. 제네릭 클래스는 클래스명 뒤 각괄호(`<>`)에 제네릭 타입 매개변수를 갖습니다.
+
+```ts
+class GenericNumber<NumType> {
+  zeroValue: NumType;
+  add: (x: NumType, y: NumType) => NumType;
+}
+ 
+let myGenericNumber = new GenericNumber<number>();
+myGenericNumber.zeroValue = 0;
+myGenericNumber.add = function (x, y) {
+  return x + y;
+};
+```
+
+이것은 `GenericNumber` 클래스를 매우 직관적으로 사용하는 예입니다. 하지만 이 클래스가 `number`타입만 사용하도록 제한되어 있지 않다는 것을 인지하셨을 수도 있습니다. 우리는 `string` 대신 더 복잡한 객체를 사용할 수도 있습니다.
+
+```ts
+let stringNumeric = new GenericNumber<string>();
+stringNumeric.zeroValue = "";
+stringNumeric.add = function (x, y) {
+  return x + y;
+};
+ 
+console.log(stringNumeric.add(stringNumeric.zeroValue, "test"));
+```
+
+인터페이스와 같이 클래스 자체에 타입 매개변수를 설정하면 모든 속성이 동일한 타입으로 작동하도록 보장할 수 있습니다.
+
+클래스는 타입의 두 가지 측면(정적 측면과 인스턴스 측면)을 가지고 있습니다 제네릭 클래스는 정적 측면이 아닌 인스턴스 측면에 대해서만 제네릭으로 동작합니다. 따라서 클래스 작업 시 정적 멤보든에 대해서는 클래스 타입 매개변수를 사용할 수 없습니다.
+
+### Generic Constraints
+
+이전 예제에서 기억하듯이, 당신이 어느정도 알고 있는 특정 타입 집합에 대해서 동작하는 제네릭 함수를 작성하고 싶을 수도 있습니다. `loggingIdentity`와 같이 `arg`의 속성`.legth`에 접근하고 싶지만 컴파일러는 모든 타입이 `.length`를 갖고 있는 것을 증명하지 못하기 때문에 추론할 수 없다고 경고하였었습니다.
+
+```ts
+function loggingIdentity<Type>(arg: Type): Type {
+  console.log(arg.length);
+//Property 'length' does not exist on type 'Type'.
+  return arg;
+}
+```
+모든 타입을 다루는 대신, `.length`속성을 가진 타입들에만 작동하도록 제약을 두고 싶습니다. 타입에 최소한으로 이 속성이 있어야만 합니다. 이를 위해 우리가 정의하는 `Type`에 대한 요구사항을 제약조건으로 나열해야 합니다.
