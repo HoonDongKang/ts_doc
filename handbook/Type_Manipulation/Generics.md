@@ -209,3 +209,118 @@ function loggingIdentity<Type>(arg: Type): Type {
 }
 ```
 모든 타입을 다루는 대신, `.length`속성을 가진 타입들에만 작동하도록 제약을 두고 싶습니다. 타입에 최소한으로 이 속성이 있어야만 합니다. 이를 위해 우리가 정의하는 `Type`에 대한 요구사항을 제약조건으로 나열해야 합니다.
+
+그렇게 하기 위해 우리는 제약조건을 갖는 인터페이스를 생성할 것입니다. 여기서 우리는 `.length` 속성 하나만 갖는 인터페이스를 생성하고 `extends`를 통해 제약조건을 명시할 것입니다.
+
+```ts
+interface Lengthwise {
+  length: number;
+}
+ 
+function loggingIdentity<Type extends Lengthwise>(arg: Type): Type {
+  console.log(arg.length); // Now we know it has a .length property, so no more error
+  return arg;
+}
+```
+
+제네릭 함수는 제약조건이 설정되어 있기 때문에 모든 타입과 함께 사용될 수는 없습니다.
+
+```ts
+loggingIdentity(3);
+//Argument of type 'number' is not assignable to parameter of type 'Lengthwise'.
+```
+
+대신 요구되는 속성을 충족하는 값에 대해서는 통과됩니다.
+
+```ts
+loggingIdentity({ length: 10, value: 3 });
+```
+
+### Using Type Parameters in Generic Constraints
+
+타입 매개변수를 다른 타입 매개변수로 제약할 수 있습니다. 예를 들어 객체와 해당 객체의 속성 이름을 입력받아 특정 속성을 가져오고 싶다고 가정해 봅시다. 이때, `obj`에 없는 속성을 잘못 가져오지 않도록 하기 위해 두 타입 간에 제약조건을 설정할 수 있습니다.
+
+```ts
+function getProperty<Type, Key extends keyof Type>(obj: Type, key: Key) {
+  return obj[key];
+}
+ 
+let x = { a: 1, b: 2, c: 3, d: 4 };
+ 
+getProperty(x, "a");
+getProperty(x, "m");
+//Argument of type '"m"' is not assignable to parameter of type '"a" | "b" | "c" | "d"'.
+```
+
+### Using Class Types in Generics
+타입스크립트에서 제네릭을 이용한 팩토리 패턴을 사용할 때, 클래스 타입을 생성자 함수로 참조하여야 합니다.
+
+```ts
+function create<Type>(c: { new (): Type }): Type {
+  return new c();
+}
+```
+
+더 고급 예제에서는 prototype 속성을 사용하여 생성자 함수와 클래스 타입의 인스턴스 측 간의 관계를 추론하고 제한합니다.
+
+```ts
+class BeeKeeper {
+  hasMask: boolean = true;
+}
+ 
+class ZooKeeper {
+  nametag: string = "Mikle";
+}
+ 
+class Animal {
+  numLegs: number = 4;
+}
+ 
+class Bee extends Animal {
+  numLegs = 6;
+  keeper: BeeKeeper = new BeeKeeper();
+}
+ 
+class Lion extends Animal {
+  keeper: ZooKeeper = new ZooKeeper();
+}
+ 
+function createInstance<A extends Animal>(c: new () => A): A {
+  return new c();
+}
+ 
+createInstance(Lion).keeper.nametag;
+createInstance(Bee).keeper.hasMask;
+```
+
+이러한 패턴은 mixin 디자인 패턴을 구현하는데 사용됩니다.
+
+
+### Generic Parameter Defaults
+
+제네릭 타입 매개변수의 기본값을 선언하면 해당 타입 인수를 명시적으로 지정하지 않아도 됩니다. 예를 들어, 새로운 `HTMLelement`를 생성하는 함수를 만들 때 아무런 인자를 전달하지 않으면 `HTMLDivElement`를 생성하고 첫번째 인자로 요소를 전달하면 해당 요소의 타입에 따라 요소를 생성합니다. 또한 선택적으로 자식 요소에 대한 리스트를 전달할 수도 있습니다.
+
+이전에는 해당 함수를 다음과 같이 정의해야 했습니다.
+```ts
+declare function create(): Container<HTMLDivElement, HTMLDivElement[]>;
+declare function create<T extends HTMLElement>(element: T): Container<T, T[]>;
+declare function create<T extends HTMLElement, U extends HTMLElement>(
+  element: T,
+  children: U[]
+): Container<T, U[]>;
+```
+
+제네릭 매개변수 기본값을 사용하면 다음과 같이 사용할 수 있습니다.
+
+```ts
+declare function create<T extends HTMLElement = HTMLDivElement, U extends HTMLElement[] = T[]>(
+  element?: T,
+  children?: U
+): Container<T, U>;
+ 
+const div = create();
+      //const div: Container<HTMLDivElement, HTMLDivElement[]>
+ 
+const p = create(new HTMLParagraphElement());
+     //const p: Container<HTMLParagraphElement, HTMLParagraphElement[]>
+```
