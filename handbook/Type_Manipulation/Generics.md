@@ -324,3 +324,4 @@ const div = create();
 const p = create(new HTMLParagraphElement());
      //const p: Container<HTMLParagraphElement, HTMLParagraphElement[]>
 ```
+..
