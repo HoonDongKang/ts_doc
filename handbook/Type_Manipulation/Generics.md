@@ -324,4 +324,123 @@ const div = create();
 const p = create(new HTMLParagraphElement());
      //const p: Container<HTMLParagraphElement, HTMLParagraphElement[]>
 ```
-..
+
+제네릭 매개변수 기본값은 다음 규칙을 따릅니다.
+- 기본값이 있는 타입 매개변수는 **optional로 간주**됩니다.
+- **Required 타입 매개변수**는 optional 타입 매개변수 뒤에 올 수 없습니다.
+- 타입 매개변수의 기본값은 **제약조건이 있을 경우, 해당 조건을 만족**해야 합니다.
+- 타입 인수를 명시할 때, required 타입 매개변수에 대해서만 타입 인수를 전달하며 전달되지않은 타입 매개변수는 **기본값으로 설정**됩니다.
+- 기본값으로 지정된 상황에서 **타입 추론에 실패할 경우, 기본값**으로 추론됩니다.
+- 기존 클래스나 인터페이스 선언과 병합되는 클래스 또는 인터페이스 선언은 **기존 타입매개변수에 기본값을 추가**할 수 있습니다.
+- 기존 클래스나 인터페이스 선언과 병합되는 클래스 또는 인터페이스 선언은 기본값을 지정하는 경우 **새 타입 매개변수를 도입**할 수 있습니다.
+
+
+### Variance Annotations
+> 매우 특별한 문제를 마주쳤을 때 해결할 수 있는 심화 과정이며, 사용해야만 하는 상황에서만 사용되어야 합니다.
+
+`Covariance`와 `Contravariance`는 두 제네릭 타입 간의 관계를 설명하는 타입 이론 용어입니다. 다음은 이 개념에 대한 간단한 설명입니다.
+
+예를 들어, 특정 타입을 생성할 수 있는 객체를 나타내는 인터페이스가 있다고 가정해 보겠습니다.
+```ts
+interface Producer<T> {
+  make(): T;
+}
+```
+
+우리는 `Producer<Animal>`이 필요한 곳에서 `Producer<Cat>`를 사용할 수 있습니다. 그 이유는 `Cat`은 `Animal`의 하위 타입이기 때문입니다. 이러한 관계를 **공변성(`covariance`)** 라고 합니다. 즉 `Producer<T>`와 `Producer<U>` 간의 관계는 `T`와 `U` 간의 관계와 동일합니다.
+
+반대로 만약 특정 타입을 소비할 수 있는 인터페이스가 있다면
+```ts
+interface Consumer<T> {
+  consume: (arg: T) => void;
+}
+```
+따라서 `Consumer<Cat>`이 필요한 곳에서 `Consumer<Animal>`이 사용될 수 있습니다. `Animal`을 받을 수 있는 함수라면 `Cat` 또한 전달받을 수 있기 때문입니다. 이러한 관계를 **반공변성(`Contravariance`)** 라고 합니다. 즉, `Consumber<T>`와 `Consumer<U>`간의 관계는 `U`와 `T`의 관계와 동일합니다.
+
+여기서 방향이 공변성과 반대인 점에 주목해주세요! 이 때문에 반공변성은 "스스로 상쇄"되는 반면 공변성은 그렇지 않습니다. 
+
+타입스크립트같은 구조적 타입 시스템에서 공변성과 반공변성은 타입의 정의에서 자연스럽게 발생하는 현상입니다. 제네릭이 없어도 우리는 공변적인 혹은 반공변적인 관계를 볼 수 있습니다.
+
+```ts
+interface AnimalProducer {
+  make(): Animal;
+}
+// A CatProducer can be used anywhere an
+// Animal producer is expected
+interface CatProducer {
+  make(): Cat;
+}
+```
+타입스크립트는 구조적 타입 시스템이기에, `Producer<Cat>`이 `Producer<Animal>`이 필요한 곳에 사용될 수 있는 지 확인하려면, 일반적인 알고리즘에서는 두 타입을 구조적으로 확장하여 비교해야 합니다.
+
+하지만 **변성(`Vairance`)** 은 매우 유용한 최적화를 가능하게 해줍니다. 만약 `Producer<T>`가 `T`에 대해 공변적이라면 우리는 `Producer<Cat>`과 `Producer<Animal>`이 `Cat`과 `Animal`과 동일한 관계를 가질 것이라는 것을 알 수 있기에 단순히 `Cat`과 `Animal`만 비교하면 됩니다.
+
+이 로직은 같은 타입의 두 인스턴스를 비교할 때만 사용할 수 있습니다. 만약 `Producer<T>`와 `FastProducer<U>`가 있을 때, `T`와 `U`가 해당 타입 내에 동일한 위치를 참조할 수 있다고 보장할 수 없기에, 구조적으로 비교를 수행해야 합니다.
+
+변성은 구조적 타입에서 자연스럽게 발생하는 속성이기에 타입스크립트는 자동으로 모든 제네릭 타입에 대한 변성을 추론합니다. 하지만 특정한 종류의 순환타입과 같은 희귀한 경우에는 이런 추론이 부정확할 수 있습니다. 만약 이런 상황이 발생한다면 타입 매개변수에 `variance annotation`을 추가하여 특정한 변성을 강제할 수 있습니다.
+
+```ts
+// Contravariant annotation
+interface Consumer<in T> {
+  consume: (arg: T) => void;
+}
+// Covariant annotation
+interface Producer<out T> {
+  make(): T;
+}
+// Invariant annotation
+interface ProducerConsumer<in out T> {
+  consume: (arg: T) => void;
+  make(): T;
+}
+```
+
+이 작업은 구조적으로 발생해야 하는 변성과 동일한 변성을 작성할 때만 사용하셔야 합니다.
+
+>구조적 변성과 일치하지 않는 변성 어노테이션을 작성해서는 안 됩니다!
+
+variance annotation은 인스턴스간 비교에서만 효과가 있다는 점이 중요합니다. 구조적 비교 중에는 아무런 영향을 미치지 않습니다. 예를 들어, 변성 어노테이션을 사용하여 타입을 실제로 **불변(invariant)**으로 "강제"할 수는 없습니다:
+
+```ts
+// DON'T DO THIS - variance annotation
+// does not match structural behavior
+interface Producer<in out T> {
+  make(): T;
+}
+// Not a type error -- this is a structural
+// comparison, so variance annotations are
+// not in effect
+const p: Producer<string | number> = {
+    make(): number {
+        return 42;
+    }
+}
+```
+`number`를 반환하는 객체 리터럴의 `make`함수는 `number`가 `string | number`가 아니기 때문에 에러가 발생할 것이라고 추측할 수 있습니다. 하지만 객체 리터럴은 익명 타입이며 `Producer<string | number>`가 아니기 때문에 인스턴스 간 비교가 아닙니다.
+
+> Variance annotations는 구조적 동작을 변경하지 않으며, 특정 상황에서만 참고됩니다.
+
+vaiance annotations는 왜 사용하는지, 그 한계가 무엇인지, 어떤 상황에서 효과가 없는지를 명확히 이해할 때만 사용하셔야 합니다. 타입스크립트가 인스턴스 간 비교 혹은 구조적 비교를 사용하는 지는 명시적으로 정의된 동작이 아니며 정확성이나 성능상 사유에 따라 버전마다 변경될 수 있습니다. 따라서 variance annotation은 반드시 타입의 구조적 동작과 일치할 때만 작성해야 합니다. 
+
+특정 변성을 강제하려고 variance annotation을 사용하지 마세요 이는 코드에서 예측할 수 없는 동작을 야기할 수 있습니다.
+
+> 타입의 구조적 동작과 일치하지 않는 경우에는 절대로 variance annotation을 작성하지 마십시오.
+
+타입스크립트는 자동적으로 제네릭 타입에서 변성을 추론할 수 있습니다. variance annotation을 작성하는 것은 거의 필요하지 않으며 특정 상황에서 필요로 할 때만 사용해야 합니다. Vairance annotation은 타입의 구조적 동작을 변경시키지 않으며 상황에 따라 인스턴스간 비교가 예상되는 경우에 구조적인 비교가 이루어질 수도 있습니다. Variance Annotations은 이러한 구조적 맥락에서 타입 동작 방식을 수정하는데 사용할 수 없을 것이며 해당 annotation이 구조적 정의와 동일할 때만 작성해야 합니다. 이를 정확히 구현하는 것은 어려우며 타입스크립트가 대부분 변성을 올바르게 추론할 수 있기 때문에, 일반적인 코드에서 variance annotations는 작성하지 않아야 합니다.
+
+> 타입 검사와 같은 상황에서 vairance annotations를 사용하지 마세요. 목적성과 다릅니다.
+
+
+vaiance annotation은 타입 디버깅 시에 유용할 수도 있습니다. 타입스크립트는 annotaition된 변성이 명확하게 잘못된 경우, 오류를 발생시킵니다. 이는 특정한 변성 관계가 예상과 맞지 않음을 발견할 수 있는 방법으로 유용할 수 있습니다
+
+```ts
+// Error, this interface is definitely contravariant on T
+interface Foo<out T> {
+  consume: (arg: T) => void;
+}
+```
+하지만 variance annotations는 더 엄격하게 적용될 수 있습니다(실제 변성이 공변일 때 `in out`이 유효) 디버깅이 끝나면 variance annotation을 제거하는 것이 좋습니다.
+
+마지막으로 타입 검사 성능을 극대화하려고 프로파일러를 실행하고 특정 타입이 느리다는 것을 발견한 후에 variance annotation을 작성하여 아주 복잡한 타입에서 조금의 성능 개선을 볼 수는 있습니다.
+
+variance annotations는 타입 검사 동작을 변경하려는 용도가 아니므로 그런 용도로 사용하면 안됩니다.
