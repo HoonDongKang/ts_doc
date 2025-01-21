@@ -73,4 +73,65 @@ let c = createLabel(Math.random() ? "hello" : 42);
 	//let c: NameLabel | IdLabel
 ```
 
+### Conditional Type Constraints
+조건부 타입에서의 검사는 종종 새로운 정보를 제공하기도 합니다. 타입 가드를 통한 `narrowing`이 더 세밀한 타입 정보를 제공하듯, 조건부 타입의 참(`true`) 분기는 검사한 타입에 따라 제네릭 타입을 더 구체적으로 제한합니다.
 
+```ts
+type MessageOf<T> = T["message"];
+//Type '"message"' cannot be used to index type 'T'.
+```
+
+해당 예제에서 `T`가 `message`라는 속성을 갖고 있는지 보장할 수 없기 때문에 타입스크립트에서 오류가 발생합니다. 하지만 `T`를 제약하여 오류를 제거할 수 있습니다.
+
+```ts
+type MessageOf<T extends { message: unknown }> = T["message"];
+ 
+interface Email {
+  message: string;
+}
+ 
+type EmailMessageContents = MessageOf<Email>;
+              //type EmailMessageContents = string
+```
+
+하지만 `messageOf`가 어떠한 타입도 받는 대신, `message` 속성이 없을 경우 기본값으로 `never`타입을 설정하도록 하고 싶으면 어떻게 해야할까요? 바로 제약조건을 밖으로 빼내어 조건부 타입을 설정하는 것입니다.
+
+```ts
+type MessageOf<T> = T extends { message: unknown } ? T["message"] : never;
+ 
+interface Email {
+  message: string;
+}
+ 
+interface Dog {
+  bark(): void;
+}
+ 
+type EmailMessageContents = MessageOf<Email>;
+              //type EmailMessageContents = string
+ 
+type DogMessageContents = MessageOf<Dog>;
+             //type DogMessageContents = never
+```
+
+참 분기에서는 타입스크립트가 `T`가 `message` 속성을 지닌다는 것을 인지하게 됩니다.
+
+다른 예제로, `Flatten`이라는 타입을 작성하여 배열 타입을 그 요소 타입으로 평탄화(`flatten`)할 수 있습니다. 하지만 그 외에는 영향을 주지 않게 작성할 수 있습니다.
+
+```ts
+type Flatten<T> = T extends any[] ? T[number] : T;
+ 
+// Extracts out the element type.
+type Str = Flatten<string[]>;
+     //type Str = string
+ 
+// Leaves the type alone.
+type Num = Flatten<number>;
+     //type Num = number
+```
+
+`Flatten`이 배열 타입을 전달받으면 `number`를 통해 인덱스 접근(`indexed access`)을 통해 `string[]`의 요소 타입을 추출합니다. 그 외에는 전달받은 타입 그대로 반환합니다.
+
+### Inferring Within Conditional Types
+
+우리는 조건부 타입을 통해 제약조건을 설정하고 타입을 추출하였습니다. 이러한 작업은 조건부 타입을 통해 더 쉽게 처리할 수 있는 일반적인 연산일 뿐입니다.
