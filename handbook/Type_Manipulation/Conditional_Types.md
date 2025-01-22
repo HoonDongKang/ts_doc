@@ -135,3 +135,79 @@ type Num = Flatten<number>;
 ### Inferring Within Conditional Types
 
 우리는 조건부 타입을 통해 제약조건을 설정하고 타입을 추출하였습니다. 이러한 작업은 조건부 타입을 통해 더 쉽게 처리할 수 있는 일반적인 연산일 뿐입니다.
+
+조건부 타입은 `infer` 키워드를 사용하여 참 분기에서 비교 대상 타입으로부터 타입을 추론할 수 있는 방법을 제공합니다. 예를 들어 우리는 `Flatten`에서 요소 타입을 인덱스 접근 타입(indexed access type)으로 수동으로 추출하는 것이 아닌 추론하였었습니다.
+
+```ts
+type Flatten<Type> = Type extends Array<infer Item> ? Item : Type;
+```
+
+우리는 참 분기 내부에서 `Type`의 요소 타입을 추출하지 않고 `infer` 키워드를 사용하여 `Item`이라는 새로운 제네릭 타입 변수를 선언하였습니다. 이 방식은 우리가 관심 있는 타입의 구조를 파헤치고 분석해야 할 고민을 없애줍니다.
+
+`infer`키워드를 사용하여 몇 가지 유용한 헬퍼 타입 별칭(helper type aliases)을 작성할 수 있습니다. 예를 들어, 간단한 경우에 우리는 함수 타입에서 반환 타입을 추출할 수 있습니다.
+
+```ts
+type GetReturnType<Type> = Type extends (...args: never[]) => infer Return
+  ? Return
+  : never;
+ 
+type Num = GetReturnType<() => number>;
+     //type Num = number
+ 
+type Str = GetReturnType<(x: string) => string>;
+     //type Str = string
+ 
+type Bools = GetReturnType<(a: boolean, b: boolean) => boolean[]>;
+      //type Bools = boolean[]
+```
+
+다중 호출 시그니처(오버로드된 함수의 타입)에서 타입을 추출할 때, 추론을 마지막 시그니처에서 이루어집니다. 전달된 인수의 타입 목록을 기반으로 오버로드를 해석하는 것은 불가합니다.
+
+```ts
+declare function stringOrNum(x: string): number;
+declare function stringOrNum(x: number): string;
+declare function stringOrNum(x: string | number): string | number;
+ 
+type T1 = ReturnType<typeof stringOrNum>;
+     //type T1 = string | number
+```
+
+### Distributive Conditional Types
+
+조건부 타입이 제네릭 타입에서 동작할 때 유니온 타입을 전달받으면 분배적으로 작동합니다.
+
+```ts
+type ToArray<Type> = Type extends any ? Type[] : never;
+```
+만약 `ToArray`에 유니온 타입을 결합시키면 조건부 타입은 해당 유니온의 각 멤버에 대해 적용이 될 것입니다.
+
+```ts
+type ToArray<Type> = Type extends any ? Type[] : never;
+ 
+type StrArrOrNumArr = ToArray<string | number>;
+           //type StrArrOrNumArr = string[] | number[]
+```
+
+여기서 `toArray`에 대해 분배가 시작됩니다.
+
+```ts
+  string | number;
+```
+
+그리고 유니온의 각 멤버 타입에 대해 맵핑되며 다음과 같이 됩니다.
+```ts
+  ToArray<string> | ToArray<number>;
+```
+그리고 이렇게 됩니다.
+```ts
+  string[] | number[];
+  ```
+일반적으로 분배성은 원하는 동작이지만 이 동작을 피하려면 `extends` 키워드 양쪽을 대괄호로 감싸면 됩니다.
+
+```ts
+type ToArrayNonDist<Type> = [Type] extends [any] ? Type[] : never;
+ 
+// 'ArrOfStrOrNum' is no longer a union.
+type ArrOfStrOrNum = ToArrayNonDist<string | number>;
+          //type ArrOfStrOrNum = (string | number)[]
+```
