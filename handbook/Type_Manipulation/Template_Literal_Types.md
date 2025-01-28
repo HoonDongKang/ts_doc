@@ -32,3 +32,5 @@ type LocaleMessageIDs = `${Lang}_${AllLocaleIDs}`;
 이 기능은 작은 문자열의 유니온들을 다룰 때 더 유용합니다.
 
 ### String Unions in Types
+
+템플릿 리터럴의 힘은 타입 내부의 정보를 통해 새로운 문자열을 정의할 때 발휘됩니다.
