@@ -33,4 +33,4 @@ type LocaleMessageIDs = `${Lang}_${AllLocaleIDs}`;
 
 ### String Unions in Types
 
-템플릿 리터럴의 힘은 타입 내부의 정보를 통해 새로운 문자열을 정의할 때 발휘됩니다.
+템플릿 리터럴의 힘은 타입 내부의 정보를 통해 새로운 문자열을 정의할 때 발휘됩니다..
